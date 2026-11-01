@@ -1,159 +1,161 @@
 # Campus Rumour Spreading Simulation
 
-### An Agent-Based Modelling Project Using NetLogo
+**An agent-based model, built in NetLogo, of how a rumour moves through a student population and how fact-checking slows it down.**
 
-A NetLogo-based agent-based simulation that explores how rumours propagate through a population of students in a campus environment and how individual fact-checking behaviour influences the spread of information.
-
-The project demonstrates how simple individual interactions can collectively produce complex patterns of information diffusion.
+![NetLogo](https://img.shields.io/badge/NetLogo-7.0.4-blue) ![Method](https://img.shields.io/badge/method-Agent--Based%20Modelling-orange) ![Type](https://img.shields.io/badge/type-academic%20project-green)
 
 ---
 
-## Project Overview
+## 1. Problem Statement
 
-Rumours can spread rapidly through social interactions, particularly in environments where individuals interact frequently.
+On a college campus, a rumour (an exam leak, a cancelled class, a fake circular) can reach hundreds of students within hours. No one person decides how far it goes. The outcome comes from thousands of small, local events: two students meet, one tells the other, and the listener either believes it or not. Some students stop and check the facts; once they do, they stop passing the rumour on.
 
-This project uses **Agent-Based Modelling (ABM)** to simulate the behaviour of students as independent agents who move around a virtual campus, communicate with nearby individuals, and potentially change their beliefs.
+These small events are hard to reason about with equations alone, because the result depends on who happens to meet whom. This project therefore uses **Agent-Based Modelling (ABM)**: each student is simulated as an individual agent with simple rules, and the campus-wide pattern of spread is observed as it *emerges* from those rules.
 
-The simulation examines how factors such as transmission probability, initial believers, population size, and fact-checking probability influence the overall propagation of a rumour.
+The central question is:
 
-## Objectives
+> **How do the chance of passing a rumour on, the chance of fact-checking it, and the starting conditions (population size and number of initial believers) decide how far and how fast a rumour spreads across a campus?**
 
-- Understand the fundamental principles of Agent-Based Modelling.
-- Simulate information propagation through local agent interactions.
-- Examine the role of probabilistic behaviour in rumour transmission.
-- Explore how individual fact-checking affects rumour propagation.
-- Visualize the collective behaviour emerging from simple agent-level rules.
+Sub-questions the model is designed to explore:
 
-## Technologies Used
+1. How does a higher **spread probability** change the speed and peak of the rumour?
+2. How much **fact-checking** is needed to stop the rumour before it reaches most students?
+3. Does a **denser campus** (more students in the same space) make the rumour spread more easily?
+4. Do **more initial believers** change the final outcome, or only how quickly it is reached?
 
-| Technology | Purpose |
+## 2. Approach: Agent-Based Modelling
+
+| ABM concept | How it appears in this model |
 |---|---|
-| NetLogo | Agent-based simulation environment |
-| NetLogo Programming Language | Agent behaviour and simulation logic |
-| Agent-Based Modelling | Computational modelling methodology |
+| Agents | Students (NetLogo *turtles*) |
+| Environment | A 33 × 33 patch campus that wraps around at the edges |
+| Agent state | `rumor-status`: `unaware`, `believer` or `verified` |
+| Local interaction | Believers can only influence students within a radius of **1.5** patches |
+| Stochastic rules | Spreading and fact-checking each happen with a set probability |
+| Emergence | The campus-wide spread curve is never programmed; it arises from individual encounters |
 
-## Simulation Model
+The model is related to the classic **SIR epidemic model** and the **Daley–Kendall rumour model**:
 
-Each student is represented by an autonomous agent, called a **turtle** in NetLogo.
-
-Agents move around a two-dimensional virtual campus and interact with nearby students.
-
-### Agent States
-
-| State | Colour | Description |
+| This model | SIR equivalent | Rumour-model equivalent |
 |---|---|---|
-| Unaware | Blue | Student has not adopted the rumour |
-| Believer | Orange | Student believes the rumour and can spread it |
-| Verified | Green | Student has performed fact-checking and stops spreading the rumour |
+| Unaware | Susceptible | Ignorant |
+| Believer | Infected | Spreader |
+| Verified | Recovered | Stifler |
 
-### Behavioural Rules
+The key difference is that here a believer becomes "verified" by checking the facts on their own (a fixed chance each tick), not by meeting other people who already know the rumour.
 
-**1. Initialization**
+## 3. Model Description
 
-A specified number of students are generated at random positions. A selected group begins as initial rumour believers, while the remaining students are unaware.
+### Agent states
 
-**2. Student Movement**
+| State | Colour in the view | Meaning |
+|---|---|---|
+| `unaware` | Sky blue | Has not heard or not accepted the rumour |
+| `believer` | Orange | Believes the rumour and passes it to nearby students |
+| `verified` | Green | Has fact-checked the rumour and no longer spreads it |
 
-Students move independently around the simulation environment using randomized turns and forward movement.
+State changes only go one way: **unaware → believer → verified**. A verified student never becomes a believer again.
 
-**3. Rumour Transmission**
+### What happens in each tick
 
-A believer can transmit the rumour to an unaware student within a defined interaction radius.
+Each call of `go` is one tick (one time step):
 
-Transmission is probabilistic and depends on the configured spread probability.
+1. **Move:** every student turns by a random angle (a random right turn of 0–49° then a random left turn of 0–49°) and walks forward 0.5 patches. This gives a random walk around the campus.
+2. **Spread:** every student who was a believer at the start of this step looks at all students within radius 1.5. Each `unaware` one becomes a `believer` with probability `spread-probability` %.
+3. **Fact-check:** every current believer, including students who were converted in step 2, becomes `verified` with probability `fact-check-probability` %.
+4. The tick counter advances.
 
-**4. Fact-Checking**
+### Initialisation (`setup`)
 
-Believers have an independent probability of fact-checking the rumour during each simulation step.
+- `population` students are placed at random positions, all `unaware`.
+- `initial-believers` of them are chosen at random and set to `believer`.
 
-After fact-checking, they enter the verified state and stop spreading the rumour.
+## 4. Parameters (Interface sliders)
 
-**5. Simulation Progression**
+| Slider | Range | Step | Default | Effect |
+|---|---|---|---|---|
+| `population` | 50 – 500 | 50 | 200 | Number of students; with a fixed campus size this also sets **density** |
+| `initial-believers` | 1 – 20 | 1 | 4 | Students who already believe the rumour at tick 0 |
+| `spread-probability` | 0 – 100 % | 5 | 20 | Chance an unaware student nearby is convinced, per believer, per tick |
+| `fact-check-probability` | 0 – 100 % | 5 | 10 | Chance a believer checks the facts each tick and stops spreading |
 
-The simulation advances through discrete time steps, represented by NetLogo ticks.
+Fixed values in the code: interaction radius = **1.5** patches, step length = **0.5** patches, world = 33 × 33 patches with wrapping.
 
-## Simulation Parameters
+## 5. How to Run
 
-| Parameter | Description |
-|---|---|
-| `population` | Total number of student agents |
-| `initial-believers` | Number of initial rumour believers |
-| `spread-probability` | Probability (%) of rumour transmission during an eligible interaction |
-| `fact-check-probability` | Probability (%) that a believer fact-checks during a simulation step |
+1. Install **NetLogo 7.0.4 or later** from [ccl.northwestern.edu/netlogo](https://ccl.northwestern.edu/netlogo/). The `.nlogox` file format needs NetLogo 7.
+2. Clone this repository:
+   ```bash
+   git clone https://github.com/earth-bhumi22/campus-rumour-spreading-simulation.git
+   ```
+3. Open `Campus_Rumour_Simulation.nlogox` in NetLogo.
+4. Set the four sliders.
+5. Click **SETUP** to place the students.
+6. Click **GO** to start the simulation. Click it again to pause.
+7. Watch the colours change: blue students turn orange as they hear the rumour, and orange students turn green as they fact-check.
 
-The model uses an interaction radius of 1.5 NetLogo units and a movement step of 0.5 units.
+> **Note:** the simulation does not stop by itself. Once no orange (believer) students are left, nothing more can change, so pause it with **GO**.
 
-## How to Run
+## 6. Suggested Experiments
 
-1. Download and install NetLogo from [netlogo.org](https://www.netlogo.org/).
-2. Clone or download this GitHub repository.
-3. Open the project model file using NetLogo.
-4. Configure the simulation parameters using the Interface controls.
-5. Click **Setup** to initialize the student population.
-6. Click **Go** to start the simulation.
-7. Observe how the agents change their states as the simulation progresses.
+Change one slider at a time and keep the others at their defaults. Because the model is random, run each setting several times and compare the typical outcome rather than a single run.
 
-**Note:** The number of initial believers must not exceed the total population.
+| # | Experiment | Change | What to observe |
+|---|---|---|---|
+| 1 | Fast-spreading rumour | `spread-probability` 20 → 60 | How quickly orange takes over; how many students stay blue |
+| 2 | Strong fact-checking culture | `fact-check-probability` 10 → 40 | Whether the rumour dies out early |
+| 3 | Crowded vs. empty campus | `population` 50 → 500 | Whether density alone changes how far the rumour gets |
+| 4 | Bigger initial leak | `initial-believers` 1 → 20 | Whether the final reach changes, or only the speed |
+| 5 | Weak rumour | `spread-probability` 20 → 5 | Whether the rumour fades before it spreads |
+| 6 | Tipping point | Keep `spread-probability` fixed, raise `fact-check-probability` step by step | The value at which the rumour stops reaching most of the campus |
 
-## Experiments and Observations
+Useful measures to record for each run:
 
-The simulation can be used to explore different scenarios:
+- **Final reach:** the number of students who ever heard the rumour (orange + green at the end)
+- **Peak believers:** the largest number of orange students at any one time, and the tick it happened
+- **Duration:** the number of ticks until no believers are left
+- **Untouched students:** the number of blue students left at the end
 
-**Scenario 1 — High Rumour Transmission**
+## 7. Assumptions and Limitations
 
-Increase spread probability to examine how quickly information can propagate through the population.
+This is a simplified teaching model, not a prediction of real student behaviour.
 
-**Scenario 2 — Increased Fact-Checking**
+- Every student follows the same rules. Nobody is more gullible, more sceptical or better connected than anyone else.
+- Contact depends only on physical closeness during a random walk. There are no friendships, hostels, classes or WhatsApp groups.
+- Fact-checking is a fixed random chance. It is not triggered by evidence, by peers or by official announcements.
+- "Verified" means the student stopped spreading the rumour. The model does not decide whether the rumour is actually true.
+- Updates within a tick happen in order (move, then spread, then fact-check), so a student can be convinced and fact-check in the same tick.
+- The model has not been calibrated against real campus data.
 
-Increase fact-check probability to observe how the conversion of believers into non-spreading agents affects rumour propagation.
+## 8. Possible Extensions
 
-**Scenario 3 — Different Initial Conditions**
+- Plots and monitors for the number of unaware, believer and verified students over time
+- A stop condition when no believers remain
+- A **BehaviorSpace** experiment to sweep parameters and export results to CSV
+- Social-network contacts (friend groups, classes) in place of or alongside spatial contact
+- Individual differences in trust and scepticism
+- Stifling through contact: a believer who meets a verified student stops spreading
+- Verified students actively correcting believers they meet
+- Two competing messages: the rumour and an official clarification
 
-Modify the population and number of initial believers to explore how starting conditions influence the simulation.
+## 9. Repository Structure
 
-**Scenario 4 — Low Interaction-Based Transmission**
+```
+campus-rumour-spreading-simulation/
+├── Campus_Rumour_Simulation.nlogox   # NetLogo model (code + interface)
+└── README.md                         # This file
+```
 
-Reduce spread probability to observe how weaker transmission affects the diffusion process.
+## 10. References
 
-These are exploratory experiments rather than empirically validated predictions of real student behaviour.
+- Wilensky, U. (1999). *NetLogo*. Center for Connected Learning and Computer-Based Modeling, Northwestern University. http://ccl.northwestern.edu/netlogo/
+- Daley, D. J., & Kendall, D. G. (1964). Epidemics and rumours. *Nature*, 204, 1118.
+- Kermack, W. O., & McKendrick, A. G. (1927). A contribution to the mathematical theory of epidemics. *Proceedings of the Royal Society A*, 115(772), 700–721.
+- Wilensky, U., & Rand, W. (2015). *An Introduction to Agent-Based Modeling*. MIT Press.
 
-## Model Limitations
+## Authors
 
-This is a simplified computational model developed for educational purposes.
+- **Bhumi Kansal** ([earth-bhumi22](https://github.com/earth-bhumi22))
+- **Nikhil Maurya** ([nikhil23maurya](https://github.com/nikhil23maurya))
 
-- All students follow the same behavioural rules.
-- Interactions depend on spatial proximity rather than real social networks.
-- Fact-checking is represented probabilistically rather than through detailed information evaluation.
-- The verified state represents fact-checking and cessation of spreading; the model does not independently establish whether the rumour is true or false.
-- The simulation is not calibrated against real-world campus data.
-
-## Future Enhancements
-
-Potential improvements include:
-
-- Realistic friendship and social-network structures.
-- Different trust levels and influence among students.
-- Agent-specific transmission and fact-checking behaviour.
-- Real-time statistical charts for agent populations.
-- Multiple competing rumours.
-- Data export and comparative simulation experiments.
-
-## Academic Relevance
-
-This project demonstrates several fundamental concepts of Agent-Based Modelling:
-
-- Autonomous agents
-- Local interactions
-- Probabilistic state transitions
-- Dynamic simulation environments
-- Emergent collective behaviour
-
-It provides a practical introduction to computational social simulation and information diffusion.
-
----
-
-**Project Type:** Academic / Educational Simulation
-
-**Domain:** Agent-Based Modelling and Computational Social Systems
-
-**Platform:** NetLogo
+Academic project, B.Tech Computer Science and Engineering (2nd Year), Faculty of Technology, University of Delhi, 2026.
